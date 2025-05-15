@@ -31,40 +31,6 @@ resource "aws_s3_bucket_policy" "frontend_policy" {
     })
 }
 
-# === lambda.tf ===
-resource "aws_iam_role" "lambda_role" {
-    name = "autoai_lambda_role"
-    assume_role_policy = jsonencode({
-        Version = "2012-10-17",
-        Statement = [{
-            Action = "sts:AssumeRole",
-            Effect = "Allow",
-            Principal = {
-                Service = "lambda.amazonaws.com"
-            }
-        }]
-    })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-    role       = aws_iam_role.lambda_role.name
-    policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_lambda_function" "generate_prompt" {
-    function_name = "generatePrompt"
-    role          = aws_iam_role.lambda_role.arn
-    handler       = "index.handler"
-    runtime       = "nodejs18.x"
-    filename      = "../backend/generate-prompt.zip"
-    source_code_hash = filebase64sha256("../backend/generate-prompt.zip")
-    environment {
-        variables = {
-            OPENAI_API_KEY = var.openai_api_key
-        }
-    }
-}
-
 # === apigateway.tf ===
 resource "aws_apigatewayv2_api" "http_api" {
     name          = "autoai-api"
@@ -91,13 +57,6 @@ resource "aws_lambda_permission" "apigw_lambda" {
     function_name = aws_lambda_function.generate_prompt.function_name
     principal     = "apigateway.amazonaws.com"
     source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
-}
-
-# === variables.tf ===
-variable "openai_api_key" {
-    type        = string
-    description = "OpenAI API Key"
-    sensitive   = true
 }
 
 # === outputs.tf ===
